@@ -1,0 +1,186 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  role      UserRole @default(ADVISOR)
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  clients Client[]
+
+  @@map("users")
+}
+
+model Client {
+  id             String       @id @default(cuid())
+  name           String
+  email          String       @unique
+  age            Int
+  isActive       Boolean      @default(true)
+  familyProfile  String? // Perfil familiar (solteiro, casado, filhos, etc.)
+  totalWealth    Decimal      @default(0) @db.Decimal(15, 2)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  // Relations
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goals          Goal[]
+  walletItems    WalletItem[]
+  events         Event[]
+  simulations    Simulation[]
+  insurances     Insurance[]
+
+  @@map("clients")
+}
+
+model Goal {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  type        GoalType
+  targetValue Decimal   @db.Decimal(15, 2)
+  targetDate  DateTime
+  priority    Int       @default(1) // 1 = alta, 2 = média, 3 = baixa
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  clientId    String
+  client      Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@map("goals")
+}
+
+model WalletItem {
+  id         String  @id @default(cuid())
+  assetClass String  // Classe do ativo (Renda Fixa, Ações, FIIs, etc.)
+  percentage Decimal @db.Decimal(5, 2) // Percentual na carteira
+  value      Decimal @db.Decimal(15, 2) // Valor atual
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  clientId   String
+  client     Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@map("wallet_items")
+}
+
+model Event {
+  id          String        @id @default(cuid())
+  title       String
+  description String?
+  type        EventType
+  value       Decimal       @db.Decimal(15, 2) // Positivo = entrada, Negativo = saída
+  frequency   EventFrequency
+  startDate   DateTime
+  endDate     DateTime?     // Para eventos recorrentes com fim
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Relations
+  clientId    String
+  client      Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@map("events")
+}
+
+model Simulation {
+  id              String   @id @default(cuid())
+  title           String
+  description     String?
+  initialWealth   Decimal  @db.Decimal(15, 2)
+  projectionRate  Decimal  @db.Decimal(5, 4) // Taxa de projeção (ex: 0.04 para 4%)
+  projectionData  Json     // Array com {year, projectedValue}
+  alignmentScore  Decimal? @db.Decimal(5, 2) // Percentual de alinhamento
+  suggestions     Json?    // Array com sugestões automáticas
+  createdAt       DateTime @default(now())
+
+  // Relations
+  clientId        String
+  client          Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@map("simulations")
+}
+
+model Insurance {
+  id           String        @id @default(cuid())
+  type         InsuranceType
+  coverage     Decimal       @db.Decimal(15, 2) // Valor da cobertura
+  premium      Decimal       @db.Decimal(10, 2) // Prêmio mensal/anual
+  frequency    PaymentFrequency
+  provider     String        // Seguradora
+  policyNumber String?       // Número da apólice
+  startDate    DateTime
+  endDate      DateTime?
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  // Relations
+  clientId     String
+  client       Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@map("insurances")
+}
+
+// Enums
+enum UserRole {
+  ADVISOR
+  VIEWER
+}
+
+enum GoalType {
+  RETIREMENT      // Aposentadoria
+  SHORT_TERM      // Curto prazo
+  MEDIUM_TERM     // Médio prazo
+  LONG_TERM       // Longo prazo
+  EMERGENCY_FUND  // Reserva de emergência
+  EDUCATION       // Educação
+  REAL_ESTATE     // Imóveis
+  OTHER           // Outros
+}
+
+enum EventType {
+  CONTRIBUTION    // Aporte
+  WITHDRAWAL      // Retirada
+  INCOME_CHANGE   // Mudança de renda
+  EXPENSE_CHANGE  // Mudança de despesa
+  BONUS           // Bonificação
+  OTHER           // Outros
+}
+
+enum EventFrequency {
+  ONCE     // Única
+  MONTHLY  // Mensal
+  YEARLY   // Anual
+}
+
+enum InsuranceType {
+  LIFE        // Vida
+  DISABILITY  // Invalidez
+  HEALTH      // Saúde
+  PROPERTY    // Patrimonial
+  OTHER       // Outros
+}
+
+enum PaymentFrequency {
+  MONTHLY  // Mensal
+  YEARLY   // Anual
+}
